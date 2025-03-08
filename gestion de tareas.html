@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Tareas - Organizador de Días</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js"></script>
+</head>
+
+<body class="bg-gray-100">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-semibold">Gestión de Tareas</h1>
+            <button onclick="window.location.href='index.html'" class="bg-red-500 px-4 py-2 rounded hover:bg-red-600">Volver al Dashboard</button>
+        </div>
+    </header>
+
+    <!-- Tareas -->
+    <section class="my-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="openTaskModal()" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Agregar Tarea</button>
+                <div>
+                    <button onclick="loadTasks('all')" class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600">Ver Todas</button>
+                    <button onclick="loadTasks('completed')" class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">Ver Completadas</button>
+                    <button onclick="loadTasks('pending')" class="bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600">Ver Pendientes</button>
+                </div>
+            </div>
+
+            <!-- Tareas List -->
+            <div id="task-list" class="space-y-4">
+                <!-- Las tareas se cargarán aquí -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal para agregar tarea -->
+    <div id="task-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-80">
+            <h3 class="text-xl font-semibold mb-4">Nueva Tarea</h3>
+            <input type="text" id="task-title" class="w-full p-2 mb-4 border rounded" placeholder="Título de la tarea">
+            <textarea id="task-description" class="w-full p-2 mb-4 border rounded" placeholder="Descripción de la tarea"></textarea>
+            <button onclick="saveTask()" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Guardar tarea</button>
+            <button onclick="closeTaskModal()" class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 mt-4">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        // Inicializa Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBhI0BSBYyumMPUxXocThLoZRtfXxYwk5Y",
+            authDomain: "organizador-de-dia.firebaseapp.com",
+            projectId: "organizador-de-dia",
+            storageBucket: "organizador-de-dia.firebasestorage.app",
+            messagingSenderId: "295626108075",
+            appId: "1:295626108075:web:125904c65e3d6403165bee"
+        };
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Mostrar lista de tareas
+        function loadTasks(filter = 'all') {
+            const taskList = document.getElementById("task-list");
+            taskList.innerHTML = ''; // Limpiar la lista
+
+            let query = db.collection("tasks");
+
+            // Aplicar filtro según el estado de la tarea
+            if (filter === 'completed') {
+                query = query.where("completed", "==", true);
+            } else if (filter === 'pending') {
+                query = query.where("completed", "==", false);
+            }
+
+            query.get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    const task = doc.data();
+                    const taskItem = document.createElement("div");
+                    taskItem.classList.add("bg-white", "p-4", "rounded-lg", "shadow", "space-y-2");
+                    taskItem.innerHTML = `
+                        <h3 class="font-semibold ${task.completed ? 'line-through text-gray-500' : ''}">${task.title}</h3>
+                        <p>${task.description}</p>
+                        <div class="flex justify-between items-center">
+                            <button onclick="toggleCompletion('${doc.id}', ${task.completed})" class="bg-green-500 text-white py-1 px-2 rounded hover:bg-green-600">${task.completed ? 'Marcar como pendiente' : 'Marcar como completada'}</button>
+                            <button onclick="deleteTask('${doc.id}')" class="bg-red-500 text-white py-1 px-2 rounded hover:bg-red-600">Eliminar</button>
+                            <button onclick="editTask('${doc.id}', '${task.title}', '${task.description}')" class="bg-yellow-500 text-white py-1 px-2 rounded hover:bg-yellow-600">Editar</button>
+                        </div>
+                    `;
+                    taskList.appendChild(taskItem);
+                });
+            });
+        }
+
+        // Agregar tarea
+        function openTaskModal() {
+            document.getElementById("task-modal").classList.remove("hidden");
+        }
+
+        function closeTaskModal() {
+            document.getElementById("task-modal").classList.add("hidden");
+        }
+
+        function saveTask() {
+            const title = document.getElementById("task-title").value;
+            const description = document.getElementById("task-description").value;
+
+            if (title && description) {
+                db.collection("tasks").add({
+                    title: title,
+                    description: description,
+                    completed: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    loadTasks();
+                    closeTaskModal();
+                }).catch((error) => {
+                    console.error("Error al agregar tarea: ", error);
+                });
+            } else {
+                alert("Por favor, completa todos los campos.");
+            }
+        }
+
+        // Eliminar tarea
+        function deleteTask(taskId) {
+            db.collection("tasks").doc(taskId).delete().then(() => {
+                loadTasks();
+            }).catch((error) => {
+                console.error("Error al eliminar tarea: ", error);
+            });
+        }
+
+        // Editar tarea
+        function editTask(taskId, currentTitle, currentDescription) {
+            document.getElementById("task-title").value = currentTitle;
+            document.getElementById("task-description").value = currentDescription;
+            document.getElementById("task-modal").classList.remove("hidden");
+
+            // Cuando se guarde, se actualizará en Firestore
+            document.querySelector("button[onclick='saveTask()']").onclick = function () {
+                updateTask(taskId);
+            };
+        }
+
+        // Actualizar tarea
+        function updateTask(taskId) {
+            const title = document.getElementById("task-title").value;
+            const description = document.getElementById("task-description").value;
+
+            db.collection("tasks").doc(taskId).update({
+                title: title,
+                description: description
+            }).then(() => {
+                loadTasks();
+                closeTaskModal();
+            }).catch((error) => {
+                console.error("Error al actualizar tarea: ", error);
+            });
+        }
+
+        // Cambiar el estado de la tarea (completada / pendiente)
+        function toggleCompletion(taskId, currentStatus) {
+            db.collection("tasks").doc(taskId).update({
+                completed: !currentStatus
+            }).then(() => {
+                loadTasks();
+            }).catch((error) => {
+                console.error("Error al cambiar el estado de la tarea: ", error);
+            });
+        }
+
+        // Cargar tareas al cargar la página
+        window.onload = function () {
+            loadTasks();
+        };
+    </script>
+
+</body>
+
+</html>

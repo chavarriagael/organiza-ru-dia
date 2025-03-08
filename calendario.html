@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario - Organizador de Días</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@3.2.0/dist/fullcalendar.min.css" rel="stylesheet" />
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@3.2.0/dist/fullcalendar.min.js"></script>
+    
+</head>
+
+<body class="bg-gray-100">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-semibold">Calendario</h1>
+            <button onclick="window.location.href='index.html'" class="bg-red-500 px-4 py-2 rounded hover:bg-red-600">Volver al Dashboard</button>
+        </div>
+    </header>
+
+    <!-- Calendar Section -->
+    <section class="my-8">
+        <div class="max-w-7xl mx-auto">
+            <div id="calendar"></div>
+        </div>
+    </section>
+
+    <!-- Modal para agregar evento -->
+    <div id="event-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-80">
+            <h3 class="text-xl font-semibold mb-4">Agregar Evento</h3>
+            <input type="text" id="event-title" class="w-full p-2 mb-4 border rounded" placeholder="Título del evento">
+            <input type="datetime-local" id="event-start" class="w-full p-2 mb-4 border rounded" placeholder="Fecha y hora de inicio">
+            <input type="datetime-local" id="event-end" class="w-full p-2 mb-4 border rounded" placeholder="Fecha y hora de fin">
+            <button onclick="saveEvent()" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Guardar evento</button>
+            <button onclick="closeEventModal()" class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 mt-4">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        // FullCalendar configuración
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth', // Vista inicial del calendario
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    // Aquí puedes cargar eventos desde Firebase
+                    successCallback([
+                        { title: 'Reunión con el equipo', start: '2025-03-15T10:00:00', end: '2025-03-15T11:00:00' },
+                        { title: 'Doctor', start: '2025-03-17T14:00:00', end: '2025-03-17T15:00:00' },
+                    ]);
+                },
+                dateClick: function(info) {
+                    showEventModal(info.dateStr); // Mostrar el modal para agregar un evento
+                }
+            });
+
+            calendar.render();
+        });
+
+        // Funciones para manejar el modal de eventos
+        function showEventModal(date) {
+            document.getElementById('event-modal').classList.remove('hidden');
+            document.getElementById('event-start').value = date;  // Mostrar la fecha seleccionada en el modal
+        }
+
+        function closeEventModal() {
+            document.getElementById('event-modal').classList.add('hidden');
+        }
+
+        function saveEvent() {
+            const title = document.getElementById('event-title').value;
+            const start = document.getElementById('event-start').value;
+            const end = document.getElementById('event-end').value;
+
+            if (title && start && end) {
+                // Aquí puedes guardar el evento en Firestore
+                alert(`Evento guardado: ${title} desde ${start} hasta ${end}`);
+                closeEventModal();
+            } else {
+                alert('Por favor, completa todos los campos');
+            }
+        }
+    </script>
+</body>
+
+</html>

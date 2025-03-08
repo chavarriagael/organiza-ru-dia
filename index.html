@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizador de Días</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Importación de Firebase -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBhI0BSBYyumMPUxXocThLoZRtfXxYwk5Y",
+            authDomain: "organizador-de-dia.firebaseapp.com",
+            projectId: "organizador-de-dia",
+            storageBucket: "organizador-de-dia.firebasestorage.app",
+            messagingSenderId: "295626108075",
+            appId: "1:295626108075:web:125904c65e3d6403165bee"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
+        const db = getFirestore(app);
+    </script>
+</head>
+
+<body class="bg-gray-100">
+
+    <!-- Panel de autenticación -->
+    <div id="auth-panel" class="flex justify-center items-center min-h-screen">
+        <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
+            <h2 class="text-center text-2xl font-bold mb-6" id="auth-title">Iniciar sesión</h2>
+            <input type="email" id="email" class="w-full p-2 mb-4 border rounded" placeholder="Correo electrónico">
+            <input type="password" id="password" class="w-full p-2 mb-4 border rounded" placeholder="Contraseña">
+            <button onclick="loginUser()" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Iniciar sesión</button>
+            <p class="mt-4 text-center">¿No tienes cuenta? <a href="#" onclick="showRegister()" class="text-blue-500 hover:underline">Regístrate</a></p>
+            <p class="mt-2 text-center">¿Olvidaste la contraseña? <a href="#" onclick="showRecoverPassword()" class="text-blue-500 hover:underline">Recupérala</a></p>
+        </div>
+    </div>
+
+    <!-- Página principal (Dashboard) -->
+    <div id="dashboard" class="hidden min-h-screen flex flex-col items-center p-6 bg-gray-100">
+        <h1 class="text-3xl font-bold mb-4">Bienvenido al Organizador de Días</h1>
+        <button onclick="logoutUser()" class="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 mb-4">Cerrar sesión</button>
+
+        <div class="w-full max-w-xl bg-white shadow-lg rounded-lg p-4 mb-4">
+            <h2 class="text-xl font-semibold mb-2">Tareas del Día</h2>
+            <ul id="task-list" class="space-y-2"></ul>
+            <button onclick="showAddTaskModal()" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 mt-4">Agregar tarea</button>
+        </div>
+
+        <div class="w-full max-w-xl bg-white shadow-lg rounded-lg p-4 mb-4">
+            <h2 class="text-xl font-semibold mb-2">Calendario</h2>
+            <a href="calendar.html" class="text-blue-500 hover:underline">Ver calendario</a>
+        </div>
+    </div>
+
+    <!-- Modal para agregar tarea -->
+    <div id="add-task-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h3 class="text-xl font-semibold mb-4">Agregar nueva tarea</h3>
+            <input type="text" id="task-name" class="w-full p-2 mb-4 border rounded" placeholder="Nombre de la tarea">
+            <button onclick="addTask()" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Guardar tarea</button>
+            <button onclick="closeAddTaskModal()" class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 mt-4">Cancelar</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Funciones de autenticación
+        function loginUser() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then(userCredential => {
+                    const user = userCredential.user;
+                    currentUser = user;
+                    showDashboard();
+                })
+                .catch(error => {
+                    alert("Error: " + error.message);
+                });
+        }
+
+        function logoutUser() {
+            signOut(auth).then(() => {
+                currentUser = null;
+                showAuthPanel();
+            });
+        }
+
+        function showAuthPanel() {
+            document.getElementById('auth-panel').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-panel').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            loadTasks();
+        }
+
+        function showRegister() {
+            alert("Registro no implementado aún.");
+        }
+
+        function showRecoverPassword() {
+            alert("Recuperación de contraseña no implementada aún.");
+        }
+
+        // Función para mostrar el modal de agregar tarea
+        function showAddTaskModal() {
+            document.getElementById('add-task-modal').classList.remove('hidden');
+        }
+
+        function closeAddTaskModal() {
+            document.getElementById('add-task-modal').classList.add('hidden');
+        }
+
+        function addTask() {
+            const taskName = document.getElementById('task-name').value;
+            if (taskName) {
+                addDoc(collection(db, "tasks"), {
+                    name: taskName,
+                    userId: currentUser.uid,
+                    completed: false,
+                    createdAt: new Date()
+                }).then(() => {
+                    loadTasks();
+                    closeAddTaskModal();
+                }).catch(error => {
+                    alert("Error al agregar tarea: " + error.message);
+                });
+            }
+        }
+
+        function loadTasks() {
+            const taskList = document.getElementById('task-list');
+            taskList.innerHTML = ''; // Limpiar la lista actual de tareas
+
+            const q = query(collection(db, "tasks"), where("userId", "==", currentUser.uid));
+            getDocs(q).then(querySnapshot => {
+                querySnapshot.forEach(doc => {
+                    const task = doc.data();
+                    const taskElement = document.createElement('li');
+                    taskElement.textContent = task.name;
+                    taskList.appendChild(taskElement);
+                });
+            });
+        }
+    </script>
+</body>
+
+</html>
